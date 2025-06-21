@@ -7,7 +7,7 @@ SecureCheck: Traffic Stop Intelligence Platform is a full-stack, data-driven Str
 ✅ Skills: 
 Python • SQL • Streamlit • PostgreSQL • Pandas • SQLAlchemy
 --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-🧾 Dataset Used
+🧾 Dataset Used:
 File Name: traffic_stops.csv
 Contains real-world traffic stop data, including columns:
 (stop_date, stop_time, country_name, driver_gender, driver_age_raw, driver_age, driver_race, violation_raw, violation, search_conducted, search_type, stop_outcome, is_arrested, stop_duration, drugs_related_stop, vehicle_number.)
@@ -34,15 +34,15 @@ Contains real-world traffic stop data, including columns:
 🔐 Secure PostgreSQL Backend (hosted on Render)
 
 💻 VS Code Friendly:
-
 Works with virtual environments for easy development and testing
+
 --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-⚙️ Tech Stack
-Frontend: 	Streamlit
-Backend:	  PostgreSQL (Render-hosted)
-ORM:	      SQLAlchemy
-Data:     	Pandas
-Deployment:	Render
+⚙️ Tech Stack:
+(Frontend: 	Streamlit,
+Backend:	  PostgreSQL (Render-hosted),
+ORM:	      SQLAlchemy,
+Data:     	Pandas,
+Deployment:	Render)
 --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 **Dashboard Preview**
 
