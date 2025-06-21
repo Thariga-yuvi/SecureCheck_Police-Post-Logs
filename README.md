@@ -1,4 +1,4 @@
-# SecureCheck: Police-Post-Logs
+# SecureCheck: Police-Post-Logs(A Python-SQL Digital Ledger)
 🚔 SecureCheck: Traffic Stop Intelligence Platform is a full-stack, data-driven Streamlit web application that empowers law enforcement and analysts with real-time insights into traffic stop patterns. It integrates a PostgreSQL backend to provide interactive dashboards, predictive analytics, and police log management.
 
 ///Skills take away From This Project: Python, SQL, Streamlit////
