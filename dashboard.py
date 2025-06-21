@@ -6,14 +6,14 @@ from sqlalchemy import create_engine, text
 from PIL import Image
 import datetime
 
-# ✅ Set page configuration
+# Set page configuration
 st.set_page_config(
     page_title="SecureCheck Dashboard",
     page_icon="https://img.freepik.com/premium-vector/secure-icon-with-lock-shield-check-mark-as-flat-logo-design-as-internet-antivirus-guard-private_101884-1553.jpg",
     layout="wide"
 )
 
-# ✅ PostgreSQL Connection Setup
+# Render PostgreSQL Connection Setup
 host = "dpg-d178l9gdl3ps73a5q1mg-a.singapore-postgres.render.com"
 port = "5432"
 database = "trafficdb_q63e"
@@ -22,7 +22,7 @@ password = "DUyvvsd9XN1ZYXsYcxM5J6Y9L6Yzt8yl"
 engine_string = f"postgresql+psycopg2://{username}:{password}@{host}:{port}/{database}"
 engine = create_engine(engine_string)
 
-# ✅ Fetch data from PostgreSQL
+# Fetch data from PostgreSQL
 def fetch_data(query):
     try:
         with engine.connect() as conn:
@@ -33,7 +33,7 @@ def fetch_data(query):
         st.error(f"Error fetching data: {e}")
         return pd.DataFrame()
 
-# ✅ Upload DataFrame to PostgreSQL
+# Upload DataFrame to PostgreSQL
 def upload_to_postgres(df, table_name="traffic_stops"):
     try:
         df.to_sql(table_name, engine, if_exists='append', index=False)
@@ -41,7 +41,7 @@ def upload_to_postgres(df, table_name="traffic_stops"):
     except Exception as e:
         print("Failed to push data:", e)
 
-# ✅ Home Page
+# Home Page
 
 def show_dashboard():
     st.title("👮:orange[SecureCheck: Real-Time Traffic Stop Intelligence Platform]")
@@ -373,7 +373,7 @@ def show_advanced_insights():
             st.error("Invalid selection.")
 
 def show_add_log():
-    st.title("📝 Add New Police Log")
+    st.title("📝 Add New Police Log and Predict Outcome and Violation")
     data = fetch_data("SELECT * FROM traffic_stops")
 
     with st.form("new_log_form"):
@@ -396,7 +396,7 @@ def show_add_log():
         drugs_related_stop_int = 1 if drug_related_stop == "Yes" else 0
         gender_full = "Male" if driver_gender == "M" else "Female"
 
-        # Predict outcome based on filters
+        # Predict outcome based on similar records
         filtered = data[
             (data['driver_gender'] == driver_gender) &
             (data['driver_age'] == driver_age) &
@@ -408,33 +408,28 @@ def show_add_log():
         predicted_outcome = filtered['stop_outcome'].mode()[0] if not filtered.empty else "Warning"
         predicted_violation = filtered['violation'].mode()[0] if not filtered.empty else "Speeding"
 
+        # Log confirmation message
+        search_text = "A search was conducted" if search_conducted == "Yes" else "No search was conducted"
+        drug_text = "was a drug-related stop" if drug_related_stop == "Yes" else "was not a drug-related stop"
+
+        # Display prediction summary
+        st.markdown(f""" 
+        ### 📝 **Prediction Summary**  
+        - **Predicted Stop Outcome:** `{predicted_outcome}`  
+        - **Predicted Violation:** `{predicted_violation}`
+        """)
+
         # Display success message
         st.success(
-            f"Log submitted successfully!\n\nA {driver_age}-year-old {gender_full} driver in {country_name} was stopped at {stop_time.strftime('%I:%M %p')} on {stop_date}. "
-            f"{'Search conducted' if search_conducted_int else 'No search'}, "
-            f"{'drug-related' if drugs_related_stop_int else 'not drug-related'} stop. "
-            f"Duration: {stop_duration}. Vehicle No: {vehicle_number}."
+            f"Log submitted successfully!\n\n"
+            f"A {driver_age}-year-old {gender_full} driver in {country_name} was stopped at {stop_time.strftime('%I:%M %p')} on {stop_date.strftime('%B %d, %Y')}. "
+            f"{search_text}, and {drug_text.lower()}.\n"
+            f"Stop duration: {stop_duration}.\n"
+            f"Vehicle Number: {vehicle_number}."
         )
 
-        # Prediction Summary in expander
-        with st.expander("🚔 **View Prediction Summary**", expanded=False):
-            st.markdown("### 📝 **Prediction Summary**")
-            st.markdown(f"**Predicted Violation:** {predicted_violation}")
-            st.markdown(f"**Predicted Stop Outcome:** {predicted_outcome}")
-
-            summary = (
-                f"On **{stop_date.strftime('%B %d, %Y')}** at **{stop_time.strftime('%I:%M %p')}**, "
-                f"a **{driver_age}-year-old {gender_full}** driver was stopped in **{country_name}**. "
-                f"During the stop, "
-                f"{'a search was conducted of type **' + search_type + '**' if search_conducted_int and search_type else '**no search was conducted**'}. "
-                f"The stop was "
-                f"{'**drug-related**' if drugs_related_stop_int else '**not drug-related**'}."
-            )
-
-            st.markdown("---")
-            st.markdown("📝 **Summary:**")
-            st.write(summary)
-
+    # Footer
+    st.markdown("---")
 # Sidebar Navigation
 selected_page = st.sidebar.radio("Navigation", ["🏠 Home", "💡 Fundamental Insights", "🧠 Advanced Insights", "📝 Add New Police Log"])
 
