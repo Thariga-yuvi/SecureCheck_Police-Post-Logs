@@ -1,7 +1,6 @@
 # SecureCheck: Traffic Stop Intelligence Platform
 import streamlit as st
 import pandas as pd
-import psycopg2
 from sqlalchemy import create_engine, text
 from PIL import Image
 import datetime
@@ -13,7 +12,7 @@ st.set_page_config(
     layout="wide"
 )
 
-# Render PostgreSQL Connection Setup
+#Render PostgreSQL Connection Setup
 host = "dpg-d178l9gdl3ps73a5q1mg-a.singapore-postgres.render.com"
 port = "5432"
 database = "trafficdb_q63e"
@@ -66,164 +65,132 @@ def show_dashboard():
     else:
         st.warning("No data available.")
 #Medium queries
-query_map_medium = {
-    # 🚗 Vehicle-Based
-    "1.Top 10 vehicles involved in drug-related stops": """
-        SELECT vehicle_number, COUNT(*) AS drug_related_count 
-        FROM traffic_stops 
-        WHERE drugs_related_stop = TRUE 
-        GROUP BY vehicle_number 
-        ORDER BY drug_related_count DESC 
-        LIMIT 10;
-    """,
-    "2.Most frequently searched vehicles": """
-        SELECT vehicle_number, COUNT(*) AS search_count 
-        FROM traffic_stops 
-        WHERE search_conducted = TRUE 
-        GROUP BY vehicle_number 
-        ORDER BY search_count DESC
-        LIMIT 10;
-    """,
-
-    # 🧍 Demographic-Based
-    "3.Driver age group with highest arrest rate": """
-        SELECT
-            CASE
-                WHEN driver_age BETWEEN 10 AND 20 THEN '10-20'
-                WHEN driver_age BETWEEN 21 AND 30 THEN '21-30'
-                WHEN driver_age BETWEEN 31 AND 40 THEN '31-40'
-                WHEN driver_age BETWEEN 41 AND 50 THEN '41-50'
-                WHEN driver_age BETWEEN 51 AND 60 THEN '51-60'
-                WHEN driver_age BETWEEN 61 AND 70 THEN '61-70'
-                ELSE '71+'
-            END AS age_group,
-            COUNT(*) AS arrest_count
-        FROM traffic_stops
-        WHERE is_arrested = TRUE
-        GROUP BY age_group
-        ORDER BY arrest_count DESC
-        LIMIT 1;
-    """,
-    "4.Gender distribution of drivers by country": """
-        SELECT country_name, driver_gender, COUNT(*) AS stop_count 
-        FROM traffic_stops 
-        GROUP BY country_name, driver_gender 
-        ORDER BY country_name, stop_count DESC;
-    """,
-    "5.Race and gender with highest search rate": """
-        SELECT driver_race, driver_gender,
-               COUNT(*) AS total_stops,
-               SUM(CASE WHEN search_conducted = TRUE THEN 1 ELSE 0 END) AS search_count,
-               (SUM(CASE WHEN search_conducted = TRUE THEN 1 ELSE 0 END) * 100.0 / COUNT(*)) AS search_rate
-        FROM traffic_stops
-        GROUP BY driver_race, driver_gender
-        ORDER BY search_rate DESC
-        LIMIT 1;
-    """,
-
-    # ⏰ Time & Duration-Based
-    "6.Hour with most traffic stops": """
-        SELECT SPLIT_PART(stop_time, ':', 1)::INT AS stop_hour, COUNT(*) AS stop_count 
-        FROM traffic_stops 
-        GROUP BY stop_hour 
-        ORDER BY stop_count DESC 
-        LIMIT 1;
-    """,
-    "7.Average stop duration by violation": """
-        SELECT violation,
-               AVG(CASE
-                   WHEN stop_duration = '0-15 Min' THEN 7.5
-                   WHEN stop_duration = '16-30 Min' THEN 23
-                   WHEN stop_duration = '30+ Min' THEN 45
-               END) AS avg_stop_duration
-        FROM traffic_stops
-        GROUP BY violation
-        ORDER BY avg_stop_duration DESC;
-    """,
-    "8.Are night stops more likely to lead to arrests?": """
-        SELECT
-            CASE
-                WHEN SPLIT_PART(stop_time, ':', 1)::INT BETWEEN 0 AND 5 THEN 'Midnight - 5 AM'
-                WHEN SPLIT_PART(stop_time, ':', 1)::INT BETWEEN 6 AND 11 THEN '6 AM - 11 AM'
-                WHEN SPLIT_PART(stop_time, ':', 1)::INT BETWEEN 12 AND 17 THEN '12 PM - 5 PM'
-                WHEN SPLIT_PART(stop_time, ':', 1)::INT BETWEEN 18 AND 23 THEN '6 PM - 11 PM'
-            END AS time_period,
-            COUNT(*) AS total_stops,
-            SUM(CASE WHEN is_arrested = TRUE THEN 1 ELSE 0 END) AS arrests,
-            (SUM(CASE WHEN is_arrested = TRUE THEN 1 ELSE 0 END) * 100.0 / COUNT(*)) AS arrest_rate
-        FROM traffic_stops
-        GROUP BY time_period
-        ORDER BY arrest_rate DESC;
-    """,
-
-    # ⚖️ Violation-Based
-    "9.Violations with highest search rate": """
-        SELECT violation,
-               COUNT(*) AS total_stops,
-               SUM(CASE WHEN search_conducted = TRUE THEN 1 ELSE 0 END) AS search_count,
-               (SUM(CASE WHEN search_conducted = TRUE THEN 1 ELSE 0 END) * 100.0 / COUNT(*)) AS search_rate
-        FROM traffic_stops
-        GROUP BY violation
-        ORDER BY search_rate DESC;
-    """,
-    "10.Violations with highest arrest rate": """
-        SELECT violation,
-               COUNT(*) AS total_stops,
-               SUM(CASE WHEN is_arrested = TRUE THEN 1 ELSE 0 END) AS arrest_count,
-               (SUM(CASE WHEN is_arrested = TRUE THEN 1 ELSE 0 END) * 100.0 / COUNT(*)) AS arrest_rate
-        FROM traffic_stops
-        GROUP BY violation
-        ORDER BY arrest_rate DESC;
-    """,
-    "11.Most common violations among drivers <25": """
-        SELECT violation, COUNT(*) AS violation_count 
-        FROM traffic_stops 
-        WHERE driver_age < 25 
-        GROUP BY violation 
-        ORDER BY violation_count DESC;
-    """,
-    "12.Violation with lowest search and arrest rate": """
-        SELECT violation,
-               COUNT(*) AS total_stops,
-               SUM(CASE WHEN search_conducted = TRUE THEN 1 ELSE 0 END) AS search_count,
-               (SUM(CASE WHEN search_conducted = TRUE THEN 1 ELSE 0 END) * 100.0 / COUNT(*)) AS search_rate,
-               SUM(CASE WHEN is_arrested = TRUE THEN 1 ELSE 0 END) AS arrest_count,
-               (SUM(CASE WHEN is_arrested = TRUE THEN 1 ELSE 0 END) * 100.0 / COUNT(*)) AS arrest_rate
-        FROM traffic_stops
-        GROUP BY violation
-        ORDER BY search_rate ASC, arrest_rate ASC
-        LIMIT 1;
-    """,
-
-    # 🌍 Location-Based
-    "13.Countries with highest drug-related stop rate": """
-        SELECT country_name,
-               COUNT(*) AS total_stops,
-               SUM(CASE WHEN drugs_related_stop = TRUE THEN 1 ELSE 0 END) AS drug_related_count,
-               (SUM(CASE WHEN drugs_related_stop = TRUE THEN 1 ELSE 0 END) * 100.0 / COUNT(*)) AS drug_related_rate
-        FROM traffic_stops
-        GROUP BY country_name
-        ORDER BY drug_related_rate DESC;
-    """,
-    "14.Arrest rate by country and violation": """
-        SELECT country_name, violation,
-               COUNT(*) AS total_stops,
-               SUM(CASE WHEN is_arrested = TRUE THEN 1 ELSE 0 END) AS arrest_count,
-               (SUM(CASE WHEN is_arrested = TRUE THEN 1 ELSE 0 END) * 100.0 / COUNT(*)) AS arrest_rate
-        FROM traffic_stops
-        GROUP BY country_name, violation
-        ORDER BY arrest_rate DESC;
-    """,
-    "15.Country with most searches": """
-        SELECT country_name, COUNT(*) AS search_count 
-        FROM traffic_stops 
-        WHERE search_conducted = TRUE 
-        GROUP BY country_name 
-        ORDER BY search_count DESC 
-        LIMIT 1;
-    """
+query_map_medium = {"1: What are the top 10 vehicle_Number involved in drug-related stops?" : """Select vehicle_number, drugs_related_stop 
+from traffic_stops 
+where drugs_related_stop = TRUE limit 10""",
+"2: Which vehicles were most frequently searched?" : """select vehicle_number, count(*) as search_count
+from traffic_stops 
+where search_conducted = TRUE group by vehicle_number order by search_count desc limit 1""",
+"3: Which driver age group had the highest arrest rate?" : """select 
+	case
+	when driver_age <= 18 then 'under18'
+	when driver_age <= 25 then '18-25'
+	when driver_age <= 35 then '26-35'
+	when driver_age <= 50 then '36-50'
+	when driver_age <= 65 then '51-65'
+	else '65+'
+end as age_group,
+    driver_age,
+    avg(case when is_arrested = 'True' then 1 else 0 END) as arrest_rate
+from 
+    traffic_stops
+group by 
+    driver_age
+order by 
+    arrest_rate DESC
+limit 1;""",
+"4: What is the gender distribution of drivers stopped in each country?" : """select
+    country_name,
+    driver_gender,
+    count(*) as num_stops
+from
+    traffic_stops
+group by
+    country_name,
+    driver_gender
+order by
+    country_name,
+    driver_gender;""",
+"5: Which race and gender combination has the highest search rate?" : """select
+    driver_race,
+    driver_gender,
+    count(*) filter (where search_conducted = TRUE) as num_searches,
+    count(*) as total_stops,
+    round(count(*) filter (where search_conducted = TRUE) * 100.0 / count(*), 2) as search_rate
+from
+    traffic_stops
+group by
+    driver_race,
+    driver_gender
+order by
+    search_rate desc
+limit 1;""",
+"6: What time of day sees the most traffic stops?" : """select 
+extract (hour from stop_time) as hour_of_day,
+count(*) as no_of_stops
+from traffic_stops
+where stop_time IS NOT NULL
+group by hour_of_day
+order by no_of_stops desc
+limit 1;""",
+"7: What is the average stop duration for different violations?" : """select violation,
+round(avg(case
+	when stop_duration = '0-15 Min' then 15
+	when stop_duration = '16-30 Min' then 30
+	when stop_duration = '30+ Min' then 45
+end),3) as avg_duration
+from traffic_stops
+where stop_duration is not null
+group by violation
+order by avg_duration desc;""",
+"8: Are stops during the night more likely to lead to arrests?" : """select 
+  case when extract(HOUR from stop_time::time) between 6 and 17 then 'Day'
+    else 'Night'
+  end as time_of_day,
+  count(*) as total_stops,
+  sum(case when is_arrested = 'True' then 1 else 0 end) as total_arrests,
+  round(sum(case when is_arrested = 'True' then 1 else 0 END) * 100.0 / count(*),2
+  ) as arrest_rate_percentage
+from traffic_stops
+group by time_of_day;""",
+"9: Which violations are most associated with searches or arrests?" : """select 
+  violation,
+  count(*) as total_stops,
+  sum(case when search_conducted = 'True' then 1 else 0 end) as total_searches,
+  sum(case when is_arrested = 'True' then 1 else 0 end) as total_arrests,
+  round(sum(case when search_conducted = 'True' then 1 else 0 end) * 100.0 / count(*), 2) as search_rate_percentage,
+  round(sum(case when is_arrested = 'True' then 1 else 0 end) * 100.0 / count(*), 2) as arrest_rate_percentage
+from traffic_stops
+group by violation
+order by total_searches desc, total_arrests desc;""",
+"10: Which violations are most common among younger drivers (<25)?" : """select violation,
+count(*) as young_driver_stops
+from traffic_stops
+where driver_age < 25
+group by violation
+order by young_driver_stops desc;""",
+"11: Is there a violation that rarely results in search or arrest?" : """select violation,
+	count(*) as total_stops,
+	sum(case when search_conducted = TRUE then 1 else 0 end) as total_searches,
+	sum(case when is_arrested = TRUE then 1 else 0 end) as total_arrests,
+	round(sum(case when search_conducted = TRUE then 1 else 0 end) *100.0 / count(*),2) as search_percent,
+	round(sum(case when is_arrested = TRUE then 1 else 0 end) *100.0 / count(*),2) as arrest_percent
+from traffic_stops
+Group by violation
+order by total_searches asc, total_arrests asc
+limit 5;""",
+"12: Which countries report the highest rate of drug-related stops?" : """select country_name,
+count(*) as total_stops,
+sum(case when drugs_related_stop = TRUE then 1 else 0 end) as total_drug_related_stops,
+round(sum(case when drugs_related_stop = TRUE then 1 else 0 end) * 100.0 / count(*), 2) as total_drug_related_stops_percent
+from traffic_stops
+group by country_name
+order by total_drug_related_stops_percent desc;""",
+"13: What is the arrest rate by country and violation?" : """select country_name, violation,
+count(*) as total_stops,
+sum(case when is_arrested = TRUE then 1 else 0 end) as total_arrests,
+round(sum(case when is_arrested = TRUE then 1 else 0 end) *100.0 / count(*),2) as arrest_percent
+from traffic_stops
+group by country_name, violation
+order by arrest_percent desc;""",
+"14: Which country has the most stops with search conducted?" : """select country_name,
+count(*) as total_stops_per_country
+from traffic_stops
+where search_conducted = TRUE
+group by country_name
+order by total_stops_per_country desc
+limit 1;"""
 }
-
 
 # Complex-Level Query Mapping
 query_map_advanced = {
@@ -430,8 +397,10 @@ def show_add_log():
 
     # Footer
     st.markdown("---")
+
+
 # Sidebar Navigation
-selected_page = st.sidebar.radio("Navigation", ["🏠 Home", "💡 Fundamental Insights", "🧠 Advanced Insights", "📝 Add New Police Log"])
+selected_page = st.sidebar.radio("Navigation", ["🏠 Home", "💡 Fundamental Insights", "🧠 Advanced Insights", "📝 Add New Police Log and Predict Outcome and Violation"])
 
 # Routing
 if selected_page == "🏠 Home":
@@ -440,9 +409,9 @@ elif selected_page == "💡 Fundamental Insights":
     show_fundamental_insights()
 elif selected_page == "🧠 Advanced Insights":
     show_advanced_insights()
-elif selected_page == "📝 Add New Police Log":
+elif selected_page == "📝 Add New Police Log and Predict Outcome and Violation":
     show_add_log()
 
 # Footer
 st.markdown("---")
-st.caption("SecureCheck - Real-Time Traffic Stop Intelligence Platform | Developed by Thariga Yuvaraj")
+st.caption("SecureCheck - Real-Time Traffic Stop Intelligence Platform | Developed by Thariga")
